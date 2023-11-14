@@ -1,10 +1,9 @@
 import os
 import glob
 import json
-
+import torch        # Paul: if torch is imported after tensorflow then I get SegmentationFault when trying to put a pytorch tensor to GPU, I don't know why...
 import tensorflow as tf
 from dataset_generator import DataGenerator, create_tf_dataset
-import torch
 
 # Disable TensorFlow warnings
 tf.get_logger().setLevel('ERROR')
@@ -99,8 +98,10 @@ if __name__ == "__main__":
     print(f"------------- Train set overview -------------")
     for i, (eegs, mels) in enumerate(train_loader):
 
-        eegs, mels = convert_to_torch(eegs, mels)
-        print(f"{i}: data: {eegs.shape}, labels: {mels.shape}")
+        eegs, mels = convert_to_torch(eegs, mels, device=device)
+        print(f"{i}: eegs: {eegs.shape}, mels: {mels.shape}")
+        print("eegs tensor on GPU:", eegs.is_cuda)
+        print("mels tensor on GPU:", mels.is_cuda)
 
         # Rest of training code
         # ...
@@ -113,5 +114,5 @@ if __name__ == "__main__":
         print(f"Subject {subject}:")
         data = [x for x in data]
         eegs, mels = tf.concat([ x[0] for x in data], axis=0), tf.concat([ x[1] for x in data], axis=0)
-        eegs, mels = convert_to_torch(eegs, mels)
+        eegs, mels = convert_to_torch(eegs, mels, device=device)
         print(f"eegs: {eegs.shape}, labels: {mels.shape}")
