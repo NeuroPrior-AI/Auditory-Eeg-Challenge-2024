@@ -1,7 +1,7 @@
 {
-  "dataset_folder": "PATH/TO/sparrKULee",
-  "derivatives_folder": "derivatives",
-  "preprocessed_eeg_folder": "preprocessed_eeg",
-  "preprocessed_stimuli_folder": "preprocessed_stimuli",
-  "split_folder": "split_data"
+  "dataset_folder": "/h/335/paulslss300/audeeg_data",
+  "derivatives_folder": "/h/335/paulslss300/audeeg_data/derivatives",
+  "preprocessed_eeg_folder": "/h/335/paulslss300/audeeg_data/derivatives/preprocessed_eeg",
+  "preprocessed_stimuli_folder": "/h/335/paulslss300/audeeg_data/derivatives/preprocessed_stimuli",
+  "split_folder": "/h/335/paulslss300/audeeg_data/derivatives/split_folder"
 }
