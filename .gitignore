@@ -160,7 +160,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea
 
-# Specific for tis project
+# Specific for this project
 task*/experiments/results*/
 *condor*
 .err
@@ -170,3 +170,4 @@ task*/experiments/results*/
 speech-decoding/*
 speech-decoding
 .m
+task2_regression/speech_waveform/*
