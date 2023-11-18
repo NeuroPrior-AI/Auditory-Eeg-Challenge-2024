@@ -6,10 +6,6 @@ from torch.nn import Conv1d, ConvTranspose1d, AvgPool1d, Conv2d
 from torch.nn.utils import weight_norm, remove_weight_norm, spectral_norm
 from task2_regression.models.utils import init_weights, get_padding
 
-# Load pre-trained Wav2Vec 2.0 model
-wav2vec2 = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-large-960h")
-
-
 LRELU_SLOPE = 0.1
 NUM_MEL_BINS = 80  # Modify this based on your mel-spectrogram configuration
 
@@ -78,76 +74,68 @@ class ResBlock2(torch.nn.Module):
 
 
 class SpeechAutoEncoder(nn.Module):
-    def __init__(self, h, latent_dim, output_mel=False):
+    def __init__(self, h, latent_dim):
         super(SpeechAutoEncoder, self).__init__()
         self.h = h
-        self.latent_dim = latent_dim
-        self.output_mel = output_mel
+        self.num_kernels = len(h.resblock_kernel_sizes)
+        self.num_upsamples = len(h.upsample_rates)
 
-        # latent_dim is the dimensionality of the speech representations
+        # The first convolutional layer is adapted to take input of size 'latent_dim'
+        # This allows the generator to accept latent representations from the Wav2Vec2 model
         self.conv_pre = weight_norm(Conv1d(latent_dim, h.upsample_initial_channel, 7, 1, padding=3))
 
-        # Initialize upsampling and residual blocks
+        # Choose ResBlock type based on configuration
         resblock = ResBlock1 if h.resblock == '1' else ResBlock2
+
+        # Upsampling layers: progressively increase the dimensions of the input
         self.ups = nn.ModuleList()
-        self.resblocks = nn.ModuleList()
         for i, (u, k) in enumerate(zip(h.upsample_rates, h.upsample_kernel_sizes)):
             self.ups.append(weight_norm(
                 ConvTranspose1d(h.upsample_initial_channel//(2**i), h.upsample_initial_channel//(2**(i+1)),
                                 k, u, padding=(k-u)//2)))
 
+        # Residual blocks: apply a series of convolutions to the upsampled input
+        self.resblocks = nn.ModuleList()
         for i in range(len(self.ups)):
             ch = h.upsample_initial_channel//(2**(i+1))
             for j, (k, d) in enumerate(zip(h.resblock_kernel_sizes, h.resblock_dilation_sizes)):
                 self.resblocks.append(resblock(h, ch, k, d))
 
-        if self.output_mel:
-            self.conv_post = weight_norm(Conv1d(ch, NUM_MEL_BINS, 7, 1, padding=3))
-        else:
-            self.conv_post = weight_norm(Conv1d(ch, 1, 7, 1, padding=3))
+        # Final convolutional layer to produce the output
+        self.conv_post = weight_norm(Conv1d(ch, 1, 7, 1, padding=3))
 
-        # Apply weight normalization to all layers
+        # Initialize weights for all layers
         self.ups.apply(init_weights)
         self.resblocks.apply(init_weights)
         self.conv_post.apply(init_weights)
-        
+
     def forward(self, x):
-        # Pass the raw audio through Wav2Vec 2.0 to get speech representations
-        with torch.no_grad():
-            speech_rep = wav2vec2(x).last_hidden_state
-            # Permute the output to match (batch, channel, time_step)
-            speech_rep = speech_rep.permute(0, 2, 1)
+        # Initial convolution
+        x = self.conv_pre(x)
 
-        # Pass through the pre-convolution layer
-        x = self.conv_pre(speech_rep)
-
-        # Upsampling and residual blocks processing
-        for i in range(len(self.ups)):
+        # Sequentially apply upsampling and residual blocks
+        for i in range(self.num_upsamples):
             x = F.leaky_relu(x, LRELU_SLOPE)
             x = self.ups[i](x)
             xs = None
             for j in range(self.num_kernels):
-                resblock_output = self.resblocks[i*self.num_kernels+j](x)
                 if xs is None:
-                    xs = resblock_output
+                    xs = self.resblocks[i*self.num_kernels+j](x)
                 else:
-                    xs += resblock_output
+                    xs += self.resblocks[i*self.num_kernels+j](x)
             x = xs / self.num_kernels
 
-        # Apply final convolution layer to produce either raw audio or mel-spectrogram
-        x = F.leaky_relu(x, LRELU_SLOPE)
+        # Apply final leaky ReLU and convolution
+        x = F.leaky_relu(x)
         x = self.conv_post(x)
 
-        if self.output_mel:
-            # We're outputting a mel-spectrogram
-            x = torch.sigmoid(x)  # Assuming mel-spectrogram values are normalized between 0 and 1
-        else:
-            # We're outputting raw audio waveform
-            x = torch.tanh(x)
+        # Tanh activation to normalize output
+        x = torch.tanh(x)
 
         return x
 
     def remove_weight_norm(self):
+        # Function to remove weight normalization from all layers
         print('Removing weight norm...')
         for l in self.ups:
             remove_weight_norm(l)
