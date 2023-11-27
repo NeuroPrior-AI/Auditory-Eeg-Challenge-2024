@@ -74,7 +74,7 @@ class ResBlock2(torch.nn.Module):
 
 
 class SpeechAutoEncoder(nn.Module):
-    def __init__(self, h, latent_dim):
+    def __init__(self, h, latent_dim=1024):
         super(SpeechAutoEncoder, self).__init__()
         self.h = h
         self.num_kernels = len(h.resblock_kernel_sizes)
@@ -82,7 +82,7 @@ class SpeechAutoEncoder(nn.Module):
 
         # The first convolutional layer is adapted to take input of size 'latent_dim'
         # This allows the generator to accept latent representations from the Wav2Vec2 model
-        self.conv_pre = weight_norm(Conv1d(latent_dim, h.upsample_initial_channel, 7, 1, padding=3))
+        self.conv_pre = weight_norm(Conv1d(latent_dim, latent_dim, 4, 1, padding=2))
 
         # Choose ResBlock type based on configuration
         resblock = ResBlock1 if h.resblock == '1' else ResBlock2
@@ -102,7 +102,7 @@ class SpeechAutoEncoder(nn.Module):
                 self.resblocks.append(resblock(h, ch, k, d))
 
         # Final convolutional layer to produce the output
-        self.conv_post = weight_norm(Conv1d(ch, 1, 7, 1, padding=3))
+        self.conv_post = weight_norm(Conv1d(ch, 10, 7, 1, padding=3))
 
         # Initialize weights for all layers
         self.ups.apply(init_weights)
@@ -114,7 +114,7 @@ class SpeechAutoEncoder(nn.Module):
         x = self.conv_pre(x)
 
         # Sequentially apply upsampling and residual blocks
-        for i in range(self.num_upsamples):
+        for i in range(self.num_upsamples):            
             x = F.leaky_relu(x, LRELU_SLOPE)
             x = self.ups[i](x)
             xs = None
@@ -127,6 +127,7 @@ class SpeechAutoEncoder(nn.Module):
 
         # Apply final leaky ReLU and convolution
         x = F.leaky_relu(x)
+        print("shape of x after", x.shape)
         x = self.conv_post(x)
 
         # Tanh activation to normalize output

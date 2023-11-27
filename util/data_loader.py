@@ -3,7 +3,11 @@ import glob
 import json
 import torch        # Paul: if torch is imported after tensorflow then I get SegmentationFault when trying to put a pytorch tensor to GPU, I don't know why...
 import tensorflow as tf
-from dataset_generator import DataGenerator, create_tf_dataset
+
+import sys
+sys.path.append('/home/naturaldx/auditory-eeg-challenge-2024-code')
+
+from util.dataset_generator import DataGenerator, create_tf_dataset
 
 # Disable TensorFlow warnings
 tf.get_logger().setLevel('ERROR')
@@ -77,9 +81,7 @@ def create_train_val_loader(window_length=3840, hop_length=1920, batch_size=64):
 
     train_files = [x for x in glob.glob(os.path.join(data_folder, "train_-_*")) if os.path.basename(x).split("_-_")[-1].split(".")[0] in features ]
     train_generator = DataGenerator(train_files, window_length)
-    dataset_train = create_tf_da
-    
-    taset(train_generator, window_length, None, hop_length, batch_size, data_types=(tf.float32, tf.float32), feature_dims=(64, 10))
+    dataset_train = create_tf_dataset(train_generator, window_length, None, hop_length, batch_size, data_types=(tf.float32, tf.float32), feature_dims=(64, 10))
 
     val_files = [x for x in glob.glob(os.path.join(data_folder, "val_-_*")) if os.path.basename(x).split("_-_")[-1].split(".")[0] in features]
     val_generator = DataGenerator(val_files, window_length)
@@ -108,13 +110,15 @@ if __name__ == "__main__":
         # Rest of training code
         # ...
         break
-
-
+    
+        
     # Test set:
     print(f"------------- Test set overview -------------")
     for subject, data in test_loader.items():
         print(f"Subject {subject}:")
         data = [x for x in data]
+        # If data is NoneType, report it and skip to next subject
+        
         eegs, mels = tf.concat([ x[0] for x in data], axis=0), tf.concat([ x[1] for x in data], axis=0)
         eegs, mels = convert_to_torch(eegs, mels, device=device)
         print(f"eegs: {eegs.shape}, labels: {mels.shape}")

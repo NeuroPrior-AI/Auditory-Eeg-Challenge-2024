@@ -1,7 +1,7 @@
 {
-  "dataset_folder": "/h/335/paulslss300/audeeg_data",
-  "derivatives_folder": "/h/335/paulslss300/audeeg_data/derivatives",
+  "dataset_folder": "/home/naturaldx/auditory-eeg-challenge-2024-code/datasets",
+  "derivatives_folder": "/home/naturaldx/auditory-eeg-challenge-2024-code/datasets/derivatives",
   "preprocessed_eeg_folder": "/h/335/paulslss300/audeeg_data/derivatives/preprocessed_eeg",
   "preprocessed_stimuli_folder": "/h/335/paulslss300/audeeg_data/derivatives/preprocessed_stimuli",
-  "split_folder": "/h/335/paulslss300/audeeg_data/derivatives/split_folder"
+  "split_folder": "/home/naturaldx/auditory-eeg-challenge-2024-code/datasets/derivatives/split_data"
 }

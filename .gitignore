@@ -177,3 +177,4 @@ speech-decoding/*
 speech-decoding
 .m
 task2_regression/speech_waveform/*
+datasets/*
