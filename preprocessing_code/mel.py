@@ -5,6 +5,7 @@ import librosa
 import numpy as np
 import scipy.signal
 
+
 def calculate_mel_spectrogram(
     audio_path,
     target_fs=64,
@@ -42,11 +43,18 @@ def calculate_mel_spectrogram(
 
     # unzip audio file
 
-
     speech = dict(np.load(audio_path))
     audio, fs = speech["audio"], speech["fs"]
+    print("audio shape: ", audio.shape)
+    
+    # Cut the audio to 30 seconds
+    audio = audio[:60 * fs]
+    
+    print("audio after shape: ", audio.shape)
+    print("fs shape: ", fs)
     if not hop_length:
-        hop_length = int((1 / target_fs) * fs)  # this will downsample the signal to target_fs Hz
+        # this will downsample the signal to target_fs Hz
+        hop_length = int((1 / target_fs) * fs)
     if not win_length:
         win_length = int(0.025 * fs)  # 25 milli seconds
 
@@ -57,18 +65,19 @@ def calculate_mel_spectrogram(
     # DC removal
     audio = audio - np.mean(audio)
 
-    mel_spectrogram = librosa.feature.melspectrogram(audio, window='hann',
-                                       sr=fs, n_fft=n_fft, hop_length=hop_length,
-                                       win_length=win_length, fmin=fmin, fmax=fmax, htk=False, norm='slaney',
-                                       n_mels=nb_filters, center=False)
+    print("n_fft: ", n_fft)
+    print("hop_length: ", hop_length)
+    print("win_length: ", win_length)
+    mel_spectrogram = librosa.feature.melspectrogram(y=audio, window='hann',
+                                                     sr=fs, n_fft=n_fft, hop_length=hop_length,
+                                                     win_length=win_length, fmin=fmin, fmax=fmax, htk=False, norm='slaney',
+                                                     n_mels=nb_filters, center=False)
 
-
+    print("mel_spectrogram shape: ", mel_spectrogram.shape)
     return mel_spectrogram
-
 
 
 # 'Center freqs' of mel bands - uniformly spaced between limits
 # mel_f:  [   0.        ,  147.02442191,  324.92910187,  540.19997145,
 #         800.6852341 , 1115.88148983, 1497.27995596, 1958.78540639,
 #        2517.22310262, 3192.95219807, 4010.6079787 , 5000.        ]
-

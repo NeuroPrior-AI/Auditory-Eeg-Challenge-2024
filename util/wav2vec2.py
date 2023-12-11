@@ -2,6 +2,8 @@ import numpy as np
 from IPython.display import Audio
 import soundfile as sf
 import torch
+import torchaudio
+from torchaudio.utils import download_asset
 from datasets import load_dataset
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 from transformers import Wav2Vec2Model, Wav2Vec2Config, Wav2Vec2Tokenizer, Wav2Vec2FeatureExtractor
@@ -9,49 +11,48 @@ import torchaudio
 from transformers import Wav2Vec2Model
 
 import librosa
+import math
 
-
-def mel_to_audio(mel, sr=16000, n_fft=512, hop_length=160, win_length=400, n_iter=32, length=None):
-    """Convert mel spectrogram to waveform using inverse.mel_to_audio from librosa
-    Parameters
-    ----------
-    mel : np.ndarray
-        Mel spectrogram
-    sr : int
-        Sampling rate
-    n_fft : int
-        FFT window size
-    hop_length : int
-        Hop length
-    win_length : int
-        Window length
-    n_iter : int
-        Number of iterations
-    length : int
-        Length of the output waveform
-    Returns
-    -------
-    audio : np.ndarray
-        Waveform
+def mel_to_audio(mel, sr=64, n_fft=2048, hop_length=750, win_length=1200, n_iter=32, n_mels=10, length=None):
     """
-    # Check if mel is a PyTorch tensor and on GPU, then move to CPU
-    if isinstance(mel, torch.Tensor):
-        if mel.is_cuda:
-            mel = mel.cpu()
-        mel = mel.numpy()
-    elif not isinstance(mel, np.ndarray):
-        mel = np.array(mel)
+    Convert mel spectrogram to waveform using GPU acceleration.
+    Parameters are the same as in the original function.
+    """
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Ensure mel is a PyTorch tensor
+    if not isinstance(mel, torch.Tensor):
+        mel = torch.tensor(mel)
 
-    # Convert mel spectrogram to waveform
-    # audio = librosa.feature.inverse.mel_to_audio(
-    #     mel, sr=sr, n_fft=n_fft, hop_length=hop_length, win_length=win_length, n_iter=n_iter)
-    audio = librosa.feature.inverse.mel_to_audio(mel)
-
-    # Truncate the waveform to the given length
-    if length is not None and len(audio) > length:
-        audio = audio[:length]
+    # Move mel to GPU if available
+    mel = mel.to(device)
+    
+    # Transpose mel spectrogram if necessary
+    if mel.shape[0] != n_mels:
+        mel = mel.transpose(0, 1)
         
-    return audio
+    # Initialize the InverseMelScale transform
+    n_stft = int((n_fft//2) + 1)
+    inverse_melscale_transform = torchaudio.transforms.InverseMelScale(n_stft=n_stft, n_mels=n_mels, sample_rate=sr).to(device)
+
+    # Apply the transform to convert mel spectrogram to linear frequency spectrogram
+    linear_spec = inverse_melscale_transform(mel)
+    
+    # Use Griffin-Lim algorithm for phase reconstruction
+    griffin_lim = torchaudio.transforms.GriffinLim(n_fft=n_fft, hop_length=hop_length, win_length=win_length, n_iter=n_iter).to(device)
+    audio = griffin_lim(linear_spec)
+    
+    # Truncate or pad the waveform to the desired length
+    if length is not None:
+        if len(audio) > length:
+            audio = audio[:length]
+        elif len(audio) < length:
+            audio = torch.nn.functional.pad(audio, (0, length - len(audio)))
+        
+    # Move audio back to CPU for numpy compatibility if needed
+    audio = audio.cpu()
+
+    return audio.numpy()
 
 
 def speech_encoder(waveform, sampling_rate=16000):
@@ -100,6 +101,7 @@ def speech_encoder(waveform, sampling_rate=16000):
 
     return latent_representation
 
+
 def speech_feature_extractor(waveform):
     """ IGNORE THIS FUNCTION
     """
@@ -123,3 +125,21 @@ def speech_feature_extractor(waveform):
         latent_representation = model(input_values).last_hidden_state
 
     return latent_representation
+
+
+def speech_encoder_pytorch(waveform, sampling_rate=48000):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cpu")
+    
+    bundle = torchaudio.pipelines.WAV2VEC2_ASR_LARGE_960H
+    model = bundle.get_model().to(device)
+
+    waveform = waveform.to(device)
+    if sampling_rate != bundle.sample_rate:
+        waveform = torchaudio.functional.resample(
+            waveform, sampling_rate, bundle.sample_rate)
+
+    with torch.inference_mode():
+        features, _ = model.extract_features(waveform)
+
+    return features[-1]
