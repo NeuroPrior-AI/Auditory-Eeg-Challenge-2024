@@ -2,6 +2,7 @@ import os
 import numpy as np
 from tqdm import tqdm  # tqdm is a library for progress bars
 import sys
+import time
 sys.path.append('/home/naturaldx/auditory-eeg-challenge-2024-code')
 
 from task2_regression.models.SpeechAutoEncoder import SpeechAutoEncoder
@@ -12,9 +13,11 @@ from util.wav2vec2 import mel_to_audio, speech_encoder, speech_encoder_pytorch
 
 train_loader, val_loader = create_train_val_loader(batch_size=64)
 
-def save_data(eegs, mels, encodings, file_path):
-    """ Save EEG, original mels, and encodings to a file """
-    np.savez(file_path, eegs=eegs.cpu().numpy(), mels=mels.cpu().numpy(), encodings=encodings.cpu().numpy())
+def save_data(latents, file_path):
+    """ Save the latents tensor to a file """
+    # Detach the tensor and move it to CPU
+    latents = latents.detach().cpu().numpy()
+    np.savez(file_path, latents=latents)
 
 def process_and_save_data(train_loader, save_dir):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -26,10 +29,13 @@ def process_and_save_data(train_loader, save_dir):
         latents = []
         total_mels = 64
         for j, mel in enumerate(tqdm(mels, desc=f"Processing Mel Spectrograms in Batch {i}", unit="mel")):
+            # Start timing for mel to audio conversion
             audio = mel_to_audio(mel)
+
             print("audio shape: ", audio.shape)
             audio = torch.tensor(audio)
             audio = audio.unsqueeze(0)
+
             latent = speech_encoder_pytorch(audio, sampling_rate=48000)
             latents.append(latent.squeeze(0))  # Remove the batch dimension
 
@@ -43,7 +49,7 @@ def process_and_save_data(train_loader, save_dir):
         print(f"[Batch {i}] latents shape: {latents.shape}, mels shape: {mels.shape}, eegs shape: {eegs.shape}")
 
         save_path = os.path.join(save_dir, f'data_batch_{i}.npz')
-        save_data(eegs, mels, latents, save_path)
+        save_data(latents, save_path)
 
         # Log saving status
         print(f"[LOG] Finished saving data batch {i}")

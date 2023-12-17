@@ -13,7 +13,7 @@ from transformers import Wav2Vec2Model
 import librosa
 import math
 
-def mel_to_audio(mel, sr=64, n_fft=2048, hop_length=750, win_length=1200, n_iter=32, n_mels=10, length=None):
+def mel_to_audio(mel, sr=48000, n_fft=2048, hop_length=750, win_length=1200, n_iter=32, n_mels=10, length=None):
     """
     Convert mel spectrogram to waveform using GPU acceleration.
     Parameters are the same as in the original function.
@@ -39,7 +39,7 @@ def mel_to_audio(mel, sr=64, n_fft=2048, hop_length=750, win_length=1200, n_iter
     linear_spec = inverse_melscale_transform(mel)
     
     # Use Griffin-Lim algorithm for phase reconstruction
-    griffin_lim = torchaudio.transforms.GriffinLim(n_fft=n_fft, hop_length=hop_length, win_length=win_length, n_iter=n_iter).to(device)
+    griffin_lim = torchaudio.transforms.GriffinLim(n_fft=n_fft, hop_length=hop_length, win_length=win_length).to(device)
     audio = griffin_lim(linear_spec)
     
     # Truncate or pad the waveform to the desired length
@@ -142,4 +142,27 @@ def speech_encoder_pytorch(waveform, sampling_rate=48000):
     with torch.inference_mode():
         features, _ = model.extract_features(waveform)
 
-    return features[-1]
+    # return features[-1]
+    # Take the average of the last 4 layers
+    # Convert the list of the last four layers into a tensor
+    last_four_layers = torch.stack(features[-4:])
+
+    # Compute the mean across these layers
+    # The dimension for mean should be 0 since you stacked the layers along a new dimension at the front
+    mean_features = torch.mean(last_four_layers, dim=0)
+
+    # Apply a convolution to mean_features for dimensionality reduction
+    # The convolution should have 512 output channels
+    # The input shape is (batch_size, sequence_length, 1024) and the output shape should be (batch_size, sequence_length, 512)
+    
+    # Create the convolutional layer
+    conv = torch.nn.Conv1d(in_channels=1024, out_channels=512, kernel_size=1)
+
+    # Move the convolutional layer to the same device as your input tensor
+    conv = conv.to(mean_features.device)
+
+    # Apply the convolutional layer to the input tensor
+    mean_features = conv(mean_features.transpose(1, 2))
+    mean_features = mean_features.transpose(1, 2)
+
+    return mean_features
