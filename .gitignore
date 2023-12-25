@@ -179,3 +179,6 @@ speech-decoding
 task2_regression/speech_waveform/*
 datasets/*
 aud/*
+
+# Large files
+task2_regression/experiments/testing_wave2vec.ipynb
