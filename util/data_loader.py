@@ -34,7 +34,7 @@ def convert_to_torch(data, label, device='cpu'):
     return data, label
     
 
-def create_test_loader(window_length=3840, hop_length=1920):
+def create_test_loader(window_length=1920, hop_length=1920):
     # Get the path to the config gile
     util_folder = os.path.dirname(__file__)
     config_path = os.path.join(util_folder, 'config.json')    
@@ -64,7 +64,7 @@ def create_test_loader(window_length=3840, hop_length=1920):
     return datasets_test
 
 
-def create_train_val_loader(window_length=3840, hop_length=1920, batch_size=64):
+def create_train_val_loader(window_length=1920, hop_length=1920, batch_size=64):
     # Get the path to the config gile
     util_folder = os.path.dirname(__file__)
     config_path = os.path.join(util_folder, 'config.json')    

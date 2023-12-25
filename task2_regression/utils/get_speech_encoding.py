@@ -26,25 +26,31 @@ def process_and_save_data(train_loader, save_dir):
     for i, (eegs, mels) in enumerate(tqdm(train_loader, desc="Processing Batches", unit="batch")):
         eegs, mels = convert_to_torch(eegs, mels, device=device)
 
-        latents = []
-        total_mels = 64
-        for j, mel in enumerate(tqdm(mels, desc=f"Processing Mel Spectrograms in Batch {i}", unit="mel")):
-            # Start timing for mel to audio conversion
-            audio = mel_to_audio(mel)
+        # latents = []
+        # total_mels = 64
+        # for j, mel in enumerate(tqdm(mels, desc=f"Processing Mel Spectrograms in Batch {i}", unit="mel")):
+        #     # Start timing for mel to audio conversion
+        #     audio = mel_to_audio(mel)
 
-            print("audio shape: ", audio.shape)
-            audio = torch.tensor(audio)
-            audio = audio.unsqueeze(0)
+        #     print("audio shape: ", audio.shape)
+        #     audio = torch.tensor(audio)
+        #     audio = audio.unsqueeze(0)
 
-            latent = speech_encoder_pytorch(audio, sampling_rate=48000)
-            latents.append(latent.squeeze(0))  # Remove the batch dimension
+        #     latent = speech_encoder_pytorch(audio, sampling_rate=48000)
+        #     latents.append(latent.squeeze(0))  # Remove the batch dimension
 
-            # Log for each mel processing
-            if j % 10 == 0 or j == total_mels - 1:  # Log every 10 mels or the last mel
-                print(f"[Batch {i}, Mel {j}/{total_mels}] Processed mel spectrogram to latent")
+        #     # Log for each mel processing
+        #     if j % 10 == 0 or j == total_mels - 1:  # Log every 10 mels or the last mel
+        #         print(f"[Batch {i}, Mel {j}/{total_mels}] Processed mel spectrogram to latent")
 
-        latents = torch.stack(latents)  # Stack along a new batch dimension
+        # latents = torch.stack(latents)  # Stack along a new batch dimension
 
+        print("mels shape: ", mels.shape)
+        # audio = mel_to_audio(mels)
+        # audio = torch.tensor(audio)
+        # latents = speech_encoder_pytorch(audio, sampling_rate=64)
+        latents = torch.randn(64, 512)
+        
         # Log dimensions of tensors
         print(f"[Batch {i}] latents shape: {latents.shape}, mels shape: {mels.shape}, eegs shape: {eegs.shape}")
 
@@ -90,7 +96,7 @@ def process_and_save_data(train_loader, save_dir):
 
 
 # Call this function before the training loop
-train_dir = 'datasets/speech_encoding/training'
+train_dir = 'datasets/speech_encoding/temp'
 val_dir = 'datasets/speech_encoding/validation'
 process_and_save_data(train_loader, train_dir)
 print("Done processing and saving training data.")

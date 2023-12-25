@@ -13,7 +13,7 @@ from transformers import Wav2Vec2Model
 import librosa
 import math
 
-def mel_to_audio(mel, sr=48000, n_fft=2048, hop_length=750, win_length=1200, n_iter=32, n_mels=10, length=None):
+def mel_to_audio(mel, sr=64, n_fft=2048, hop_length=1, win_length=1200, n_iter=32, n_mels=10, length=1920):
     """
     Convert mel spectrogram to waveform using GPU acceleration.
     Parameters are the same as in the original function.
@@ -28,12 +28,14 @@ def mel_to_audio(mel, sr=48000, n_fft=2048, hop_length=750, win_length=1200, n_i
     mel = mel.to(device)
     
     # Transpose mel spectrogram if necessary
-    if mel.shape[0] != n_mels:
-        mel = mel.transpose(0, 1)
+    # if mel.shape[0] != n_mels:
+    #     mel = mel.transpose(0, 1)
+    if mel.shape[1] != n_mels:
+        mel = mel.transpose(1, 2)
         
     # Initialize the InverseMelScale transform
     n_stft = int((n_fft//2) + 1)
-    inverse_melscale_transform = torchaudio.transforms.InverseMelScale(n_stft=n_stft, n_mels=n_mels, sample_rate=sr).to(device)
+    inverse_melscale_transform = torchaudio.transforms.InverseMelScale(n_stft=n_stft, n_mels=n_mels, sample_rate=sr, f_min=0, f_max=5000).to(device)
 
     # Apply the transform to convert mel spectrogram to linear frequency spectrogram
     linear_spec = inverse_melscale_transform(mel)
@@ -159,7 +161,8 @@ def speech_encoder_pytorch(waveform, sampling_rate=48000):
     conv = torch.nn.Conv1d(in_channels=1024, out_channels=512, kernel_size=1)
 
     # Move the convolutional layer to the same device as your input tensor
-    conv = conv.to(mean_features.device)
+    # conv = conv.to(mean_features.device)
+    conv = conv.to(device)
 
     # Apply the convolutional layer to the input tensor
     mean_features = conv(mean_features.transpose(1, 2))
