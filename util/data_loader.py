@@ -9,6 +9,8 @@ from dataset_generator import DataGenerator, create_tf_dataset
 tf.get_logger().setLevel('ERROR')
 
 
+
+
 def convert_to_torch(data, label, device='cpu'):
     """
     Convert TensorFlow EagerTensors to PyTorch tensors and optionally load them on a specified device.
@@ -91,11 +93,12 @@ if __name__ == "__main__":
     print(f"Using device: {device}.")
 
     # Note: these datasets contain Tensorflow tensors, so convert_to_torch() needs to be called to convert them to PyTorch tensors
-    train_loader, val_loader = create_train_val_loader(batch_size=64)
-    test_loader = create_test_loader()
+    train_loader, val_loader = create_train_val_loader(window_length=320, hop_length=1920, batch_size=64)
+    test_loader = create_test_loader(window_length=320, hop_length=1920)
 
     # Train loop:
     print(f"------------- Train set overview -------------")
+    total_batches = 0
     for i, (eegs, mels) in enumerate(train_loader):
 
         eegs, mels = convert_to_torch(eegs, mels, device=device)
@@ -105,7 +108,14 @@ if __name__ == "__main__":
 
         # Rest of training code
         # ...
-        break
+
+        # After training, evaluate on validation set
+        # Calculate validation loss, accuracy, etc...
+
+        # break
+        total_batches += 1
+    
+    print(f"Total train set batches: {total_batches}.")
 
 
     # Test set:
